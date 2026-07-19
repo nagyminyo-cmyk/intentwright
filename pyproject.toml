@@ -1,0 +1,16 @@
+[project]
+name = "goal-forge"
+version = "1.0.0"
+description = "Turn rough ideas into decision-complete, execution-ready Codex goals."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "nagyminyo-cmyk" }]
+dependencies = []
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

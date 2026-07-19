@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+.venv/
+uv.lock
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+.DS_Store
+Thumbs.db
+
+# Goal Forge runtime data belongs in the target project, never in this skill.
+goals/
+goal_pending/
+goal_achieved/
+goal_not_achieved/
+.goal-forge-workspace.json
+.goal-forge-root.json
