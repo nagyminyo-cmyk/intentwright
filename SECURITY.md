@@ -10,7 +10,7 @@ For non-sensitive hardening ideas, a normal GitHub issue is welcome.
 
 ## Scope and expectations
 
-Goal Forge handles local specifications, lifecycle state, claim tokens, hashes,
+Intentwright handles local specifications, lifecycle state, claim tokens, hashes,
 and filesystem paths. Security-relevant areas include:
 
 - path traversal, symlink, junction, reparse-point, hardlink, or alias bypasses;
@@ -20,7 +20,7 @@ and filesystem paths. Security-relevant areas include:
 - unsafe portable import behavior;
 - accidental exposure of secrets in generated handoffs or evidence.
 
-Goal Forge is not an OS sandbox. A process that already has permission to alter
+Intentwright is not an OS sandbox. A process that already has permission to alter
 the workspace can bypass cooperative write-scope rules or rewrite both content
 and unhashed trust roots. Reports should distinguish coordination guarantees
 from operating-system access control.

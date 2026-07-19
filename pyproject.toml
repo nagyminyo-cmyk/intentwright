@@ -1,7 +1,7 @@
 [project]
-name = "goal-forge"
-version = "1.0.0"
-description = "Turn rough ideas into decision-complete, execution-ready Codex goals."
+name = "intentwright"
+version = "2.0.0"
+description = "Turn rough intent into approval-bound, testable Codex goals."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

@@ -1,16 +1,17 @@
-# Goal Forge package contract
+# Intentwright package contract
 
-This is the machine-facing contract for an approved Goal Forge specification. Follow it exactly; `scripts/goal_lifecycle.py` rejects drift.
+This is the machine-facing contract for an approved Intentwright specification. Follow it exactly; `scripts/intentwright_lifecycle.py` rejects drift.
 
 ## 1. Canonical workspace and layout
 
-Use the canonical Git worktree root when the workspace is in Git. A non-Git workspace is identified by its resolved absolute path. Nested workspaces may not register independent Goal Forge roots.
+Use the canonical Git worktree root when the workspace is in Git. A non-Git workspace is identified by its resolved absolute path. Nested workspaces may not register independent Intentwright roots.
 
 ```text
 <workspace>/
 ├── .goal-forge-workspace.json
+├── .intentwright-workspace.json
 └── goals/
-    ├── .goal-forge-root.json
+    ├── .intentwright-root.json
     ├── .locks/
     ├── goal_pending/
     │   └── g_20260719T143522123Z_game_rebuild_map_7f3a9c2e/
@@ -32,6 +33,11 @@ Use the canonical Git worktree root when the workspace is in Git. A non-Git work
         └── <terminal package including terminal_seal.json>
 ```
 
+The old-name workspace file is an exclusion sentinel, not an active package
+identity. It prevents an older helper from registering an independent goal root
+over an Intentwright workspace. Intentwright validates it as
+`intentwright-legacy-exclusion`; never rename or edit it manually.
+
 The goal root may use a different one-directory workspace-relative name, but one canonical workspace may register only one root. Do not adopt an unrelated existing `goals` directory.
 
 Each goal has one exact package. Never put several spec files directly in `goal_pending`, reuse a goal ID, fuzzy-match a package, merge packages, or automatically delete terminal history.
@@ -52,7 +58,7 @@ The helper:
 - validates all paths below the canonical workspace;
 - rejects symlinks, junctions, reparse points, hardlinked files, NTFS alternate
   data streams, Windows path aliases, path escapes, overwrites, and merges;
-- permits one registered Goal Forge root per canonical workspace;
+- permits one registered Intentwright root per canonical workspace;
 - rejects nested workspace aliases and overlapping claimed scopes;
 - stores normalized explicit project-relative write scopes; there is no implicit default;
 - hashes the approved body and wrapped canonical spec;
@@ -303,12 +309,12 @@ After exact approval, the helper prepends only:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "goal_id": "g_...",
   "slug": "game_rebuild_map",
   "title": "Rebuild the game map",
   "revision": 3,
-  "interview_id": "gfi_...",
+  "interview_id": "iwi_...",
   "approval_record": "Approve spec v3 receipt <64 hex>",
   "approval_receipt_sha256": "<64 hex>",
   "approval_body_sha256": "<64 hex>",
@@ -366,7 +372,7 @@ A `pass` or `fail` criterion references one or more JSON files below `evidence/`
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "goal_id": "g_...",
   "criterion_id": "AC-001",
   "claim_epoch": 1,
@@ -392,7 +398,7 @@ Allowed methods: `command`, `interaction`, `inspection`, `review`, `artifact`. N
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "goal_id": "g_...",
   "outcome": "achieved",
   "reason_code": "completed",
@@ -478,65 +484,65 @@ flag when applicable.
 Pre-approval:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" approval-receipt --file "<candidate>" --workspace "<workspace>" --goals-dir "goals" --title "<title>" --slug "<slug>" --revision 3 --interview-id "<gfi_YYYYMMDDTHHMMSSmmmZ_slug_4hex>" --write-scope "src/game"
+python "<skill>/scripts/intentwright_lifecycle.py" approval-receipt --file "<candidate>" --workspace "<workspace>" --goals-dir "goals" --title "<title>" --slug "<slug>" --revision 3 --interview-id "<iwi_YYYYMMDDTHHMMSSmmmZ_slug_4hex>" --write-scope "src/game"
 ```
 
 After the exact approval phrase:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" init --workspace "<workspace>" --goals-dir "goals" --title "<title>" --slug "<slug>" --revision 3 --interview-id "<gfi_YYYYMMDDTHHMMSSmmmZ_slug_4hex>" --approval-record "Approve spec v3 receipt <receipt hash>" --approval-receipt-sha256 "<receipt hash>" --approved-body-sha256 "<body hash>" --write-scope "src/game"
-python "<skill>/scripts/goal_lifecycle.py" publish --package "<staging package>"
-python "<skill>/scripts/goal_lifecycle.py" verify --package "<pending package>"
-python "<skill>/scripts/goal_lifecycle.py" claim --package "<pending package>"
-python "<skill>/scripts/goal_lifecycle.py" heartbeat --package "<package>" --claim-token "<token>" --action "<phase>"
-python "<skill>/scripts/goal_lifecycle.py" state --package "<package>" --claim-token "<token>" --state validating --action "Running final acceptance pass"
+python "<skill>/scripts/intentwright_lifecycle.py" init --workspace "<workspace>" --goals-dir "goals" --title "<title>" --slug "<slug>" --revision 3 --interview-id "<iwi_YYYYMMDDTHHMMSSmmmZ_slug_4hex>" --approval-record "Approve spec v3 receipt <receipt hash>" --approval-receipt-sha256 "<receipt hash>" --approved-body-sha256 "<body hash>" --write-scope "src/game"
+python "<skill>/scripts/intentwright_lifecycle.py" publish --package "<staging package>"
+python "<skill>/scripts/intentwright_lifecycle.py" verify --package "<pending package>"
+python "<skill>/scripts/intentwright_lifecycle.py" claim --package "<pending package>"
+python "<skill>/scripts/intentwright_lifecycle.py" heartbeat --package "<package>" --claim-token "<token>" --action "<phase>"
+python "<skill>/scripts/intentwright_lifecycle.py" state --package "<package>" --claim-token "<token>" --state validating --action "Running final acceptance pass"
 ```
 
 Achievement:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" archive --package "<package>" --claim-token "<token>" --outcome achieved --reason-code completed --external-goal-disposition complete_after_archive
+python "<skill>/scripts/intentwright_lifecycle.py" archive --package "<package>" --claim-token "<token>" --outcome achieved --reason-code completed --external-goal-disposition complete_after_archive
 ```
 
 Blocked, only after the platform accepted `blocked`:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" archive --package "<package>" --claim-token "<token>" --outcome not_achieved --reason-code blocked --platform-blocked-confirmed --external-goal-disposition platform_blocked_before_archive
+python "<skill>/scripts/intentwright_lifecycle.py" archive --package "<package>" --claim-token "<token>" --outcome not_achieved --reason-code blocked --platform-blocked-confirmed --external-goal-disposition platform_blocked_before_archive
 ```
 
 Claimed cancellation or abandonment, after the user clears the persistent goal
 and the outcome JSON contains the same exact authorization:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" archive --package "<package>" --claim-token "<token>" --outcome not_achieved --reason-code cancelled_by_user --authorized-reason "Cancel goal <goal-id>" --external-goal-disposition user_cancelled_or_replaced_before_archive
-python "<skill>/scripts/goal_lifecycle.py" archive --package "<package>" --claim-token "<token>" --outcome not_achieved --reason-code abandoned_by_user --authorized-reason "Abandon goal <goal-id>" --external-goal-disposition user_cancelled_or_replaced_before_archive
+python "<skill>/scripts/intentwright_lifecycle.py" archive --package "<package>" --claim-token "<token>" --outcome not_achieved --reason-code cancelled_by_user --authorized-reason "Cancel goal <goal-id>" --external-goal-disposition user_cancelled_or_replaced_before_archive
+python "<skill>/scripts/intentwright_lifecycle.py" archive --package "<package>" --claim-token "<token>" --outcome not_achieved --reason-code abandoned_by_user --authorized-reason "Abandon goal <goal-id>" --external-goal-disposition user_cancelled_or_replaced_before_archive
 ```
 
 Claimed supersession, after the external replacement and with matching outcome
 JSON linkage:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" archive --package "<old package>" --claim-token "<token>" --outcome not_achieved --reason-code superseded --authorized-reason "Supersede goal <old-goal-id> with <replacement-goal-id>" --replacement-goal-id "<replacement-goal-id>" --external-goal-disposition user_cancelled_or_replaced_before_archive
+python "<skill>/scripts/intentwright_lifecycle.py" archive --package "<old package>" --claim-token "<token>" --outcome not_achieved --reason-code superseded --authorized-reason "Supersede goal <old-goal-id> with <replacement-goal-id>" --replacement-goal-id "<replacement-goal-id>" --external-goal-disposition user_cancelled_or_replaced_before_archive
 ```
 
 Takeover requires the exact current epoch:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" takeover --package "<package>" --authorized-reason "Authorize takeover of <goal-id> from claim epoch <N>" --identity "<real new executor identity>"
+python "<skill>/scripts/intentwright_lifecycle.py" takeover --package "<package>" --authorized-reason "Authorize takeover of <goal-id> from claim epoch <N>" --identity "<real new executor identity>"
 ```
 
 Administrative retirement applies only to a clean unclaimed package:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" retire --package "<package>" --reason-code cancelled_by_user --authorized-reason "Cancel goal <goal-id>"
-python "<skill>/scripts/goal_lifecycle.py" retire --package "<package>" --reason-code abandoned_by_user --authorized-reason "Abandon goal <goal-id>"
-python "<skill>/scripts/goal_lifecycle.py" retire --package "<old package>" --reason-code superseded --authorized-reason "Supersede goal <old-goal-id> with <replacement-goal-id>" --replacement-goal-id "<replacement-goal-id>"
+python "<skill>/scripts/intentwright_lifecycle.py" retire --package "<package>" --reason-code cancelled_by_user --authorized-reason "Cancel goal <goal-id>"
+python "<skill>/scripts/intentwright_lifecycle.py" retire --package "<package>" --reason-code abandoned_by_user --authorized-reason "Abandon goal <goal-id>"
+python "<skill>/scripts/intentwright_lifecycle.py" retire --package "<old package>" --reason-code superseded --authorized-reason "Supersede goal <old-goal-id> with <replacement-goal-id>" --replacement-goal-id "<replacement-goal-id>"
 ```
 
 An exact unpublished draft may be permanently removed only after inspection:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" discard-staging --package "<exact .staging package>" --confirmation "Discard unpublished staging <goal-id>"
+python "<skill>/scripts/intentwright_lifecycle.py" discard-staging --package "<exact .staging package>" --confirmation "Discard unpublished staging <goal-id>"
 ```
 
 Publication and discard use the same per-goal lifecycle lock. If another
@@ -552,13 +558,13 @@ discarded.
 Exact recovery:
 
 ```powershell
-python "<skill>/scripts/goal_lifecycle.py" recover --workspace "<workspace>" --goals-dir "goals" --goal-id "<exact goal ID>" --claim-token "<token when required>"
+python "<skill>/scripts/intentwright_lifecycle.py" recover --workspace "<workspace>" --goals-dir "goals" --goal-id "<exact goal ID>" --claim-token "<token when required>"
 ```
 
 Portable restoration is deliberately narrow:
 
 ```powershell
-python "<local skill>/scripts/goal_lifecycle.py" import-portable --workspace "<exact same receipt-bound absolute workspace path>" --goals-dir "goals" --file "<portable_handoff.md>"
+python "<local skill>/scripts/intentwright_lifecycle.py" import-portable --workspace "<exact same receipt-bound absolute workspace path>" --goals-dir "goals" --file "<portable_handoff.md>"
 ```
 
 `import-portable` rejects a different absolute workspace identity, lineage-bearing

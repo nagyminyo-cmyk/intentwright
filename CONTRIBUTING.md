@@ -1,4 +1,4 @@
-# Contributing to Goal Forge
+# Contributing to Intentwright
 
 Thank you for helping make ambitious agent goals less ambiguous.
 
@@ -21,9 +21,9 @@ The examples below use the Windows launcher `python`. On macOS or Linux, use
 `python3` unless `python` already resolves to Python 3.10 or newer.
 
 ```bash
-git clone https://github.com/nagyminyo-cmyk/goal-forge.git
-cd goal-forge
-python scripts/goal_lifecycle.py --help
+git clone https://github.com/nagyminyo-cmyk/intentwright.git
+cd intentwright
+python scripts/intentwright_lifecycle.py --help
 python -m unittest discover -s tests -v
 ```
 

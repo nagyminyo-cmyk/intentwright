@@ -1,8 +1,25 @@
 # Changelog
 
-All notable changes to Goal Forge will be documented in this file.
+All notable changes to Intentwright will be documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
+
+## [2.0.0] - 2026-07-19
+
+### Changed
+
+- Established the complete Intentwright public identity: `$intentwright`, `iwi_` interview
+  IDs, Intentwright marker and payload namespaces, and the renamed lifecycle
+  helper.
+- Advanced the lifecycle schema to version 2. Packages created by another
+  lifecycle identity remain bound to the helper that created them and are
+  rejected rather than silently rewritten.
+
+### Added
+
+- Bidirectional workspace-registration fencing between schema 1 helpers and
+  Intentwright, including a compatibility exclusion sentinel and regression
+  coverage.
 
 ## [1.0.0] - 2026-07-19
 

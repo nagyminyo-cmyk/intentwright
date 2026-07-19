@@ -1,28 +1,29 @@
-# Goal Forge
+# Intentwright
 
-**Turn a rough idea into a decision-complete Codex goal before anyone starts building.**
+> **Intent, made executable.**
 
-[![Validation](https://github.com/nagyminyo-cmyk/goal-forge/actions/workflows/validate.yml/badge.svg)](https://github.com/nagyminyo-cmyk/goal-forge/actions/workflows/validate.yml)
+[![Validation](https://github.com/nagyminyo-cmyk/intentwright/actions/workflows/validate.yml/badge.svg)](https://github.com/nagyminyo-cmyk/intentwright/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Goal Forge is a user skill for Codex. It conducts an adaptive, adversarial
-interview, resolves consequential ambiguity, freezes the result into an
-explicitly approved specification, and generates a short `/goal` command for a
-fresh execution session.
+Intentwright is a pre-execution specification skill for Codex. It turns rough
+ideas into decision-complete, approval-bound execution contracts before anyone
+starts building. Its adaptive, adversarial interview resolves consequential
+ambiguity, freezes the result into an explicitly approved specification, and
+generates a short `/goal` command for a fresh execution session.
 
 It is for the moment when:
 
 > “I know what I want in my head, but agents keep turning it into something
 > generic.”
 
-Goal Forge does not build the project during the interview. Its job is to make
+Intentwright does not build the project during the interview. Its job is to make
 the eventual build goal unusually precise, testable, and difficult to
 misinterpret.
 
 ## What it changes
 
 A normal prompt often leaves the executor to invent product decisions while it
-implements. Goal Forge moves those decisions into a deliberate interview:
+implements. Intentwright moves those decisions into a deliberate interview:
 
 ```mermaid
 flowchart LR
@@ -76,44 +77,68 @@ Requirements:
 Enter this in Codex, not in a terminal:
 
 ```text
-$skill-installer Install Goal Forge from https://github.com/nagyminyo-cmyk/goal-forge
+$skill-installer Install Intentwright from https://github.com/nagyminyo-cmyk/intentwright
 ```
 
 ### Manual installation: Windows PowerShell
 
 ```powershell
 New-Item -ItemType Directory -Force "$HOME\.agents\skills" | Out-Null
-git clone https://github.com/nagyminyo-cmyk/goal-forge.git "$HOME\.agents\skills\goal-forge"
+git clone https://github.com/nagyminyo-cmyk/intentwright.git "$HOME\.agents\skills\intentwright"
 ```
 
 ### Manual installation: macOS or Linux
 
 ```bash
 mkdir -p ~/.agents/skills
-git clone https://github.com/nagyminyo-cmyk/goal-forge.git ~/.agents/skills/goal-forge
+git clone https://github.com/nagyminyo-cmyk/intentwright.git ~/.agents/skills/intentwright
 ```
 
-Codex normally detects the new skill automatically. If `$goal-forge` does not
+Codex normally detects the new skill automatically. If `$intentwright` does not
 appear, start a new session or restart Codex.
 
 If that destination already contains an older manual copy, move or remove that
 copy deliberately before cloning. Do not merge two installations.
+
+Intentwright also refuses to adopt lifecycle state created by a differently
+identified helper. Finish or retire those packages with the helper that created
+them, then start Intentwright in a clean workspace or deliberately cleared goal
+root. Never rename sealed packages or their marker files in place.
+
+### Migrating lifecycle schema 1 packages
+
+Intentwright uses lifecycle schema 2. If an earlier helper has an active,
+pending, or terminal schema 1 package:
+
+1. keep that exact installed helper and its directory unchanged;
+2. finish, archive, recover, or retire the package with that helper;
+3. never rename or edit its sealed package, marker files, or generated handoff;
+4. install Intentwright separately at `.agents/skills/intentwright`; and
+5. begin Intentwright work only in a clean workspace or deliberately cleared
+   goal root.
+
+The schema boundary is intentionally fail-closed. A new approval is required
+when work must be recreated under Intentwright.
+
+The historical `v1.0.0` tag remains frozen solely so existing schema 1
+handoffs can recover the exact helper that created them. Do not update that
+checkout to `main` while any of its packages still exist.
 
 ## Use
 
 Start a new Codex session in or near the project you want to define:
 
 ```text
-$goal-forge I want to build an amazing multiplayer game
+$intentwright I want to build an amazing multiplayer game
 ```
 
 Or:
 
 ```text
-$goal-forge Grill me until we have a complete specification for rebuilding the map system.
+$intentwright Grill me until we have a complete specification for rebuilding the map system.
 ```
 
-Goal Forge will:
+Intentwright will:
 
 1. establish the canonical workspace;
 2. assign a visible interview ID;
@@ -128,7 +153,7 @@ Goal Forge will:
 The first response should look roughly like:
 
 ```text
-Goal Forge interview started: gfi_...
+Intentwright interview started: iwi_...
 
 My current understanding: ...
 
@@ -163,8 +188,9 @@ well-behaved agents from claiming overlapping resolved write scopes.
 
 ### Keep runtime goal data private by default
 
-The `goals/` tree and `.goal-forge-workspace.json` are local operational state,
-not ordinary source files. They can contain:
+The `goals/` tree, `.intentwright-workspace.json`, and
+`.goal-forge-workspace.json` compatibility sentinel are local operational
+state, not ordinary source files. They can contain:
 
 - complete user specifications and evidence;
 - absolute workspace paths;
@@ -176,6 +202,7 @@ Unless you deliberately want to review and version that material, add the
 following to the **target project's** `.gitignore` before publishing a goal:
 
 ```gitignore
+/.intentwright-workspace.json
 /.goal-forge-workspace.json
 /goals/
 ```
@@ -187,20 +214,20 @@ Git history.
 ## Update
 
 ```powershell
-git -C "$HOME\.agents\skills\goal-forge" pull --ff-only
+git -C "$HOME\.agents\skills\intentwright" pull --ff-only
 ```
 
 On macOS or Linux, the same command works with the path
-`~/.agents/skills/goal-forge`.
+`~/.agents/skills/intentwright`.
 
 If Codex does not detect the update in a new session, restart it.
 
 ## Important safety boundary
 
-Goal Forge is a coordination and specification system, not an operating-system
+Intentwright is a coordination and specification system, not an operating-system
 sandbox or access-control boundary.
 
-- Declared write scopes are leases enforced among cooperating Goal Forge
+- Declared write scopes are leases enforced among cooperating Intentwright
   executors; they do not remove filesystem permissions.
 - Hashes and seals detect accidental or out-of-band changes but are not digital
   signatures against an attacker who can rewrite the package and its seals.
@@ -215,9 +242,9 @@ sandbox or access-control boundary.
 - [`SKILL.md`](SKILL.md) contains the interviewer and handoff behavior.
 - [`references/interview-playbook.md`](references/interview-playbook.md)
   contains the adaptive question state machine and domain branches.
-- [`references/goal-package-contract.md`](references/goal-package-contract.md)
+- [`references/intentwright-package-contract.md`](references/intentwright-package-contract.md)
   defines the exact specification and lifecycle schema.
-- [`scripts/goal_lifecycle.py`](scripts/goal_lifecycle.py) validates approval,
+- [`scripts/intentwright_lifecycle.py`](scripts/intentwright_lifecycle.py) validates approval,
   publication, claims, evidence, archival, recovery, retries, and replacements.
 
 The lifecycle helper uses only the Python standard library. Windows uses
