@@ -1,4 +1,4 @@
 interface:
-  display_name: "Goal Forge"
-  short_description: "Turn rough ideas into execution-ready goals"
-  default_prompt: "Use $goal-forge to deeply interview me and produce an approved, isolated goal package for a new Codex /goal session."
+  display_name: "Intentwright"
+  short_description: "Turn rough intent into approved, testable goals"
+  default_prompt: "Use $intentwright to deeply interview me and produce an approved, isolated goal package for a new Codex /goal session."

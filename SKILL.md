@@ -1,9 +1,9 @@
 ---
-name: goal-forge
-description: Exhaustively interview the user before a persistent /goal, turn rough intent into an explicitly approved execution-ready specification, publish an isolated concurrency-coordinated goal package, and generate a pasteable new-session /goal handoff with verified terminal archival. Use when the user invokes $goal-forge, asks to be grilled before building, wants a highly detailed plan/specification for an ambitious task, or answers, corrects, resumes, revises, or approves an active Goal Forge interview. Do not use for ordinary quick questions, simple well-scoped changes, or execution of an already approved goal package.
+name: intentwright
+description: Exhaustively interview the user before a persistent /goal, turn rough intent into an explicitly approved execution-ready specification, publish an isolated concurrency-coordinated goal package, and generate a pasteable new-session /goal handoff with verified terminal archival. Use when the user invokes $intentwright, asks to be grilled before building, wants a highly detailed plan/specification for an ambitious task, or answers, corrects, resumes, revises, or approves an active Intentwright interview. Do not use for ordinary quick questions, simple well-scoped changes, or execution of an already approved goal package.
 ---
 
-# Goal Forge
+# Intentwright
 
 Turn fuzzy intent into a frozen, testable execution contract before implementation. Optimize for consequential clarity, not a theatrical question count.
 
@@ -17,7 +17,7 @@ Turn fuzzy intent into a frozen, testable execution contract before implementati
 6. Continue until the readiness gate passes. Do not stop at a fixed question count, and do not probe details that cannot affect the outcome.
 7. Do not create a goal package before the user approves the exact numbered revision and its complete approval receipt.
 8. Treat a published specification as immutable. Material change requires a separately approved replacement; never edit an executing specification in place.
-9. Use `scripts/goal_lifecycle.py` for approval receipts, publication, claims, recovery, and archival. Do not improvise weaker file moves.
+9. Use `scripts/intentwright_lifecycle.py` for approval receipts, publication, claims, recovery, and archival. Do not improvise weaker file moves.
 10. Address goals only by exact immutable goal ID and exact package path. Never select “latest” or “most similar.”
 11. The conversational interviewer must not open sibling goal specifications. The lifecycle helper may machine-verify sibling lifecycle metadata, sealed integrity, and explicitly linked lineage.
 12. Use a Python 3.10-or-newer launcher for lifecycle commands: `python` on Windows and normally `python3` on macOS or Linux. In instructions below, `<python>` means that platform-appropriate launcher.
@@ -26,12 +26,12 @@ Turn fuzzy intent into a frozen, testable execution contract before implementati
 ## Start or resume
 
 1. Read [references/interview-playbook.md](references/interview-playbook.md) completely.
-2. Resolve the canonical workspace. In a Git worktree, use its top-level root. Goal Forge refuses nested workspace aliases that could bypass shared leases.
-3. Select one project-relative goal-root directory, normally `goals`. If that path already contains unrelated data, obtain another one-directory name. One canonical workspace may register only one Goal Forge root.
-4. Inspect the target repository's ignore rules read-only. State whether the selected goal root and `.goal-forge-workspace.json` are ignored, and recommend ignoring both unless the user consciously wants lifecycle data in version control. Never edit ignore rules without authorization.
+2. Resolve the canonical workspace. In a Git worktree, use its top-level root. Intentwright refuses nested workspace aliases that could bypass shared leases.
+3. Select one project-relative goal-root directory, normally `goals`. If that path already contains unrelated data, obtain another one-directory name. One canonical workspace may register only one Intentwright root.
+4. Inspect the target repository's ignore rules read-only. State whether the selected goal root, `.intentwright-workspace.json`, and the `.goal-forge-workspace.json` compatibility sentinel are ignored. Recommend ignoring all three unless the user consciously wants lifecycle data in version control. Never edit ignore rules without authorization.
 5. Assign an interview ID using exactly
-   `gfi_YYYYMMDDTHHMMSSmmmZ_<lowercase_snake_slug>_<4 lowercase hex>`, for
-   example `gfi_20260719T143522123Z_game_rebuild_map_7f3a`. Show it in the first
+   `iwi_YYYYMMDDTHHMMSSmmmZ_<lowercase_snake_slug>_<4 lowercase hex>`, for
+   example `iwi_20260719T143522123Z_game_rebuild_map_7f3a`. Show it in the first
    response and every full readback. It is not a goal ID and creates no files.
 6. Keep one active interview per thread. Park or switch by exact interview ID; never merge decision ledgers.
 7. Inspect relevant `AGENTS.md`, README files, manifests, documentation, selected source, Git status, and goal-root metadata read-only. Exclude sibling goal packages from content discovery.
@@ -69,7 +69,7 @@ During questioning, an item may be open. An approvable ledger may not contain un
 
 ## Apply the readiness gate
 
-Before drafting, read [references/goal-package-contract.md](references/goal-package-contract.md) completely. Use its exact semantic-body headings and machine-validated tables.
+Before drafting, read [references/intentwright-package-contract.md](references/intentwright-package-contract.md) completely. Use its exact semantic-body headings and machine-validated tables.
 
 Run five adversarial reviews:
 
@@ -89,7 +89,7 @@ Continue interviewing while any material open question, unresolved contradiction
 4. Run `approval-receipt` with the candidate file and every envelope field:
 
    ```text
-   <python> "<skill>/scripts/goal_lifecycle.py" approval-receipt --file "<candidate>" --workspace "<canonical workspace>" --goals-dir "<goal root>" --title "<exact title>" --slug "<slug>" --revision <N> --interview-id "<gfi_...>" --write-scope "<scope>"
+   <python> "<skill>/scripts/intentwright_lifecycle.py" approval-receipt --file "<candidate>" --workspace "<canonical workspace>" --goals-dir "<goal root>" --title "<exact title>" --slug "<slug>" --revision <N> --interview-id "<iwi_...>" --write-scope "<scope>"
    ```
 
    Repeat `--write-scope` for every scope. Pass the exact `--retry-of` or `--supersedes` ID when applicable.
@@ -154,4 +154,4 @@ Finish this skill only when either:
 - the interview is waiting for the user’s next material answer or exact approval phrase; or
 - an approved package has passed publication and verification and the exact pasteable handoff has been delivered.
 
-Never claim that Goal Forge built the requested project. It produces the decision-complete contract and safe execution handoff; the new `/goal` session performs the work.
+Never claim that Intentwright built the requested project. It produces the decision-complete contract and safe execution handoff; the new `/goal` session performs the work.

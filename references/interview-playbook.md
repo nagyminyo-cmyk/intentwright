@@ -1,4 +1,4 @@
-# Goal Forge interview playbook
+# Intentwright interview playbook
 
 ## Contents
 
@@ -61,7 +61,7 @@ Classify every universal dimension as:
 - `NOT_APPLICABLE`: it does not affect this task, with a brief reason.
 
 Assign a conversational interview ID before the first question using exactly
-`gfi_YYYYMMDDTHHMMSSmmmZ_<lowercase_snake_slug>_<4 lowercase hex>`. Keep one
+`iwi_YYYYMMDDTHHMMSSmmmZ_<lowercase_snake_slug>_<4 lowercase hex>`. Keep one
 active interview per thread; explicitly park or switch by exact ID instead of
 mixing ideas.
 

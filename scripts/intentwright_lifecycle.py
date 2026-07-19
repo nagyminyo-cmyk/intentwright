@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic lifecycle helper for Goal Forge packages.
+"""Deterministic lifecycle helper for Intentwright packages.
 
 The helper creates and atomically publishes isolated goal packages, verifies
 immutable specifications, coordinates exclusive executor claims, and archives
@@ -30,9 +30,13 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 1
-ROOT_MARKER = ".goal-forge-root.json"
-WORKSPACE_MARKER = ".goal-forge-workspace.json"
+SCHEMA_VERSION = 2
+ROOT_MARKER = ".intentwright-root.json"
+WORKSPACE_MARKER = ".intentwright-workspace.json"
+LEGACY_ROOT_MARKER = ".goal-forge-root.json"
+LEGACY_WORKSPACE_MARKER = ".goal-forge-workspace.json"
+LEGACY_COORDINATION_DIRECTORY = ".goal-forge-coordination"
+LEGACY_EXCLUSION_KIND = "intentwright-legacy-exclusion"
 SEAL_FILE = "package_seal.json"
 TERMINAL_SEAL_FILE = "terminal_seal.json"
 APPROVED_BODY_FILE = "approved_semantic_spec.md"
@@ -54,7 +58,7 @@ GOAL_ID_RE = re.compile(
     r"^g_\d{8}T\d{9}Z_(?P<slug>[a-z0-9_]+)_(?P<random>[0-9a-f]{8})$"
 )
 INTERVIEW_ID_RE = re.compile(
-    r"^gfi_\d{8}T\d{9}Z_[a-z0-9_]+_[0-9a-f]{4}$"
+    r"^iwi_\d{8}T\d{9}Z_[a-z0-9_]+_[0-9a-f]{4}$"
 )
 ACCEPTANCE_RE = re.compile(r"\bAC-\d{3,}\b", re.IGNORECASE)
 ALL_REQUIREMENT_RE = re.compile(
@@ -62,8 +66,8 @@ ALL_REQUIREMENT_RE = re.compile(
     re.IGNORECASE,
 )
 STRETCH_ACCEPTANCE_RE = re.compile(r"\bSAC-\d{3,}\b", re.IGNORECASE)
-PORTABLE_BEGIN = "<!-- GOAL_FORGE_PORTABLE_PAYLOAD_BEGIN -->"
-PORTABLE_END = "<!-- GOAL_FORGE_PORTABLE_PAYLOAD_END -->"
+PORTABLE_BEGIN = "<!-- INTENTWRIGHT_PORTABLE_PAYLOAD_BEGIN -->"
+PORTABLE_END = "<!-- INTENTWRIGHT_PORTABLE_PAYLOAD_END -->"
 UNIVERSAL_DIMENSIONS = (
     "Outcome and audience",
     "Current state and context",
@@ -381,14 +385,15 @@ def canonical_workspace(workspace_arg: str) -> Path:
                     f"workspaces cannot acquire independent leases: {git_root}"
                 )
     for ancestor in workspace.parents:
-        marker = ancestor / WORKSPACE_MARKER
-        if marker.exists():
-            if is_link_like(marker):
-                raise LifecycleError(f"Unsafe ancestor Goal Forge workspace marker: {marker}")
-            raise LifecycleError(
-                "This path is nested inside an already registered Goal Forge workspace; "
-                f"use its canonical workspace root: {ancestor}"
-            )
+        for marker_name in (WORKSPACE_MARKER, LEGACY_WORKSPACE_MARKER):
+            marker = ancestor / marker_name
+            if marker.exists():
+                if is_link_like(marker):
+                    raise LifecycleError(f"Unsafe ancestor lifecycle marker: {marker}")
+                raise LifecycleError(
+                    "This path is nested inside an already registered lifecycle workspace; "
+                    f"use its canonical workspace root: {ancestor}"
+                )
     return workspace
 
 
@@ -403,12 +408,73 @@ def find_descendant_workspace_markers(workspace: Path) -> list[Path]:
                 continue
             safe_dirs.append(name)
         dir_names[:] = safe_dirs
-        marker = base / WORKSPACE_MARKER
-        if marker != workspace / WORKSPACE_MARKER and WORKSPACE_MARKER in file_names:
-            if is_link_like(marker):
-                raise LifecycleError(f"Unsafe nested Goal Forge workspace marker: {marker}")
-            found.append(marker)
+        for marker_name in (WORKSPACE_MARKER, LEGACY_WORKSPACE_MARKER):
+            marker = base / marker_name
+            if marker != workspace / marker_name and marker_name in file_names:
+                if is_link_like(marker):
+                    raise LifecycleError(f"Unsafe nested lifecycle marker: {marker}")
+                found.append(marker)
     return found
+
+
+def refuse_legacy_workspace(workspace: Path, root: Path | None = None) -> None:
+    workspace_marker = workspace / LEGACY_WORKSPACE_MARKER
+    root_marker = root / LEGACY_ROOT_MARKER if root is not None else None
+    for marker in (workspace_marker, root_marker):
+        if marker is None or not marker.exists():
+            continue
+        if is_link_like(marker):
+            raise LifecycleError(f"Unsafe legacy lifecycle marker: {marker}")
+        if marker == workspace_marker:
+            value = read_json(marker)
+            expected_relative = (
+                root.resolve(strict=False).relative_to(workspace).as_posix()
+                if root is not None
+                else value.get("relative_root")
+            )
+            if (
+                type(value.get("schema_version")) is int
+                and value.get("schema_version") == SCHEMA_VERSION
+                and value.get("kind") == LEGACY_EXCLUSION_KIND
+                and value.get("canonical_workspace") == os.path.normcase(str(workspace))
+                and value.get("relative_root") == expected_relative
+            ):
+                continue
+        raise LifecycleError(
+            "This workspace contains lifecycle state created before Intentwright. "
+            "Finish or retire those packages with their original installed helper, then use "
+            "Intentwright in a clean workspace or deliberately cleared goal root. Existing "
+            "sealed packages must never be renamed in place."
+        )
+
+
+def ensure_legacy_exclusion_marker(workspace: Path, relative_root: Path) -> None:
+    marker = workspace / LEGACY_WORKSPACE_MARKER
+    expected_root = relative_root.as_posix()
+    value = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": LEGACY_EXCLUSION_KIND,
+        "canonical_workspace": os.path.normcase(str(workspace)),
+        "relative_root": expected_root,
+        "created_at": utc_now(),
+    }
+    if not marker.exists():
+        try:
+            create_json_exclusive(marker, value)
+        except LifecycleError:
+            if not marker.exists():
+                raise
+    registered = read_json(marker)
+    if (
+        type(registered.get("schema_version")) is not int
+        or registered.get("schema_version") != SCHEMA_VERSION
+        or registered.get("kind") != LEGACY_EXCLUSION_KIND
+        or registered.get("canonical_workspace") != os.path.normcase(str(workspace))
+        or registered.get("relative_root") != expected_root
+    ):
+        raise LifecycleError(
+            "This workspace already contains incompatible lifecycle registration state"
+        )
 
 
 def assert_no_link_like(root: Path) -> None:
@@ -474,10 +540,11 @@ def workspace_and_root(
             locked_root = workspace.joinpath(relative_root).resolve(strict=False)
             if locked_root != root:
                 raise LifecycleError("Goal-root identity changed during registration")
+            refuse_legacy_workspace(workspace, locked_root)
             nested_markers = find_descendant_workspace_markers(workspace)
             if nested_markers:
                 raise LifecycleError(
-                    "A nested Goal Forge workspace is already registered beneath this workspace: "
+                    "A nested Intentwright workspace is already registered beneath this workspace: "
                     + ", ".join(str(path.parent) for path in nested_markers)
                 )
             ensure_root(workspace, root, relative_root)
@@ -493,12 +560,13 @@ def ensure_root(workspace: Path, root: Path, relative_root: Path) -> None:
     if is_link_like(root) or not root.is_dir():
         raise LifecycleError(f"Goal root is not a safe directory: {root}")
 
+    refuse_legacy_workspace(workspace, root)
     expected = {ROOT_MARKER, LOCKS, *LOCATION_NAMES}
     unexpected = [entry.name for entry in root.iterdir() if entry.name not in expected]
     marker = root / ROOT_MARKER
     if not marker.exists() and unexpected:
         raise LifecycleError(
-            f"{root} is not an empty or recognized Goal Forge root; unexpected entries: "
+            f"{root} is not an empty or recognized Intentwright root; unexpected entries: "
             + ", ".join(sorted(unexpected))
         )
     if not marker.exists():
@@ -512,7 +580,7 @@ def ensure_root(workspace: Path, root: Path, relative_root: Path) -> None:
                     occupied_expected.append(name)
         if occupied_expected:
             raise LifecycleError(
-                f"{root} has no Goal Forge marker but contains occupied lifecycle directories: "
+                f"{root} has no Intentwright marker but contains occupied lifecycle directories: "
                 + ", ".join(sorted(occupied_expected))
             )
 
@@ -520,12 +588,12 @@ def ensure_root(workspace: Path, root: Path, relative_root: Path) -> None:
         child = root / name
         child.mkdir(exist_ok=True)
         if is_link_like(child) or not child.is_dir():
-            raise LifecycleError(f"Unsafe Goal Forge directory: {child}")
+            raise LifecycleError(f"Unsafe Intentwright directory: {child}")
 
     if not marker.exists():
         marker_value = {
             "schema_version": SCHEMA_VERSION,
-            "kind": "goal-forge-root",
+            "kind": "intentwright-root",
             "created_at": utc_now(),
             "workspace_hint": str(workspace),
             "relative_root": relative_root.as_posix(),
@@ -544,20 +612,22 @@ def register_workspace_root(workspace: Path, relative_root: Path) -> dict[str, A
     committed_workspace = canonical_workspace(str(workspace))
     if committed_workspace != workspace:
         raise LifecycleError("Canonical workspace identity changed before registration commit")
+    refuse_legacy_workspace(workspace, workspace / relative_root)
+    ensure_legacy_exclusion_marker(workspace, relative_root)
     marker = workspace / WORKSPACE_MARKER
     if marker.exists() and is_link_like(marker):
-        raise LifecycleError(f"Unsafe Goal Forge workspace marker: {marker}")
+        raise LifecycleError(f"Unsafe Intentwright workspace marker: {marker}")
     nested_markers = find_descendant_workspace_markers(workspace)
     if nested_markers:
         raise LifecycleError(
-            "A nested Goal Forge workspace is already registered beneath this workspace; "
+            "A nested Intentwright workspace is already registered beneath this workspace; "
             "use that exact workspace or remove the competing registration deliberately: "
             + ", ".join(str(path.parent) for path in nested_markers)
         )
     expected_root = relative_root.as_posix()
     value = {
         "schema_version": SCHEMA_VERSION,
-        "kind": "goal-forge-workspace",
+        "kind": "intentwright-workspace",
         "canonical_workspace": os.path.normcase(str(workspace)),
         "relative_root": expected_root,
         "created_at": utc_now(),
@@ -572,12 +642,12 @@ def register_workspace_root(workspace: Path, relative_root: Path) -> dict[str, A
     if (
         type(registered.get("schema_version")) is not int
         or registered.get("schema_version") != SCHEMA_VERSION
-        or registered.get("kind") != "goal-forge-workspace"
+        or registered.get("kind") != "intentwright-workspace"
         or registered.get("canonical_workspace") != os.path.normcase(str(workspace))
         or registered.get("relative_root") != expected_root
     ):
         raise LifecycleError(
-            "This workspace is already registered to a different Goal Forge root: "
+            "This workspace is already registered to a different Intentwright root: "
             f"{registered.get('relative_root')!r}"
         )
     return registered
@@ -588,13 +658,14 @@ def validate_root(workspace: Path, root: Path) -> dict[str, Any]:
         raise LifecycleError(f"Goal root is missing or unsafe: {root}")
     if not is_within(root.resolve(strict=True), workspace):
         raise LifecycleError(f"Goal root escapes workspace: {root}")
+    refuse_legacy_workspace(workspace, root)
     marker = read_json(root / ROOT_MARKER)
     if (
         type(marker.get("schema_version")) is not int
         or marker.get("schema_version") != SCHEMA_VERSION
-        or marker.get("kind") != "goal-forge-root"
+        or marker.get("kind") != "intentwright-root"
     ):
-        raise LifecycleError(f"Unrecognized Goal Forge root marker: {root / ROOT_MARKER}")
+        raise LifecycleError(f"Unrecognized Intentwright root marker: {root / ROOT_MARKER}")
     expected_relative = root.resolve(strict=True).relative_to(workspace).as_posix()
     if marker.get("relative_root") != expected_relative:
         raise LifecycleError("Goal-root marker path does not match the actual root")
@@ -602,20 +673,20 @@ def validate_root(workspace: Path, root: Path) -> dict[str, Any]:
     if (
         type(registration.get("schema_version")) is not int
         or registration.get("schema_version") != SCHEMA_VERSION
-        or registration.get("kind") != "goal-forge-workspace"
+        or registration.get("kind") != "intentwright-workspace"
         or registration.get("canonical_workspace") != os.path.normcase(str(workspace))
         or registration.get("relative_root") != expected_relative
     ):
         raise LifecycleError(
-            "Workspace registration does not authorize this Goal Forge root"
+            "Workspace registration does not authorize this Intentwright root"
         )
     for name in (LOCKS, *LOCATION_NAMES):
         child = root / name
         if not child.is_dir() or is_link_like(child):
-            raise LifecycleError(f"Missing or unsafe Goal Forge directory: {child}")
+            raise LifecycleError(f"Missing or unsafe Intentwright directory: {child}")
         resolved_child = child.resolve(strict=True)
         if resolved_child.parent != root.resolve(strict=True):
-            raise LifecycleError(f"Goal Forge lifecycle directory escapes its root: {child}")
+            raise LifecycleError(f"Intentwright lifecycle directory escapes its root: {child}")
     return marker
 
 
@@ -695,7 +766,7 @@ def approval_receipt_payload(
 ) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
-        "kind": "goal-forge-approval-receipt",
+        "kind": "intentwright-approval-receipt",
         "workspace_identity": os.path.normcase(str(workspace.resolve(strict=True))),
         "goals_dir": goals_dir,
         "title": title,
@@ -789,7 +860,7 @@ def validate_write_scope_paths(workspace: Path, scopes: list[str]) -> list[str]:
 
 def validate_goal_id(goal_id: str) -> None:
     if not GOAL_ID_RE.fullmatch(goal_id):
-        raise LifecycleError(f"Invalid Goal Forge goal ID: {goal_id}")
+        raise LifecycleError(f"Invalid Intentwright goal ID: {goal_id}")
 
 
 def project_relative(workspace: Path, path: Path) -> str:
@@ -914,7 +985,7 @@ def write_terminal_seal(
 ) -> dict[str, Any]:
     seal = {
         "schema_version": SCHEMA_VERSION,
-        "kind": "goal-forge-terminal-seal",
+        "kind": "intentwright-terminal-seal",
         "goal_id": goal_id,
         "outcome": outcome,
         "reason_code": reason_code,
@@ -951,7 +1022,7 @@ def validate_terminal_seal(
     if (
         type(seal.get("schema_version")) is not int
         or seal.get("schema_version") != SCHEMA_VERSION
-        or seal.get("kind") != "goal-forge-terminal-seal"
+        or seal.get("kind") != "intentwright-terminal-seal"
         or seal.get("goal_id") != goal_id
         or seal.get("outcome") != outcome
         or seal.get("reason_code") != reason_code
@@ -1019,7 +1090,7 @@ def validate_precommitted_terminal_seal(
     if (
         type(seal.get("schema_version")) is not int
         or seal.get("schema_version") != SCHEMA_VERSION
-        or seal.get("kind") != "goal-forge-terminal-seal"
+        or seal.get("kind") != "intentwright-terminal-seal"
         or seal.get("goal_id") != goal_id
         or seal.get("outcome") != outcome
         or seal.get("reason_code") != reason_code
@@ -1080,7 +1151,7 @@ def find_staging_context(package_arg: str) -> tuple[Path, Path, Path]:
         raise LifecycleError(f"Staging package does not exist: {original}")
     package = original.resolve(strict=True)
     if package.parent.name != PENDING or not package.name.startswith(".staging_"):
-        raise LifecycleError(f"Not a Goal Forge staging package: {package}")
+        raise LifecycleError(f"Not an Intentwright staging package: {package}")
     root = package.parent.parent
     workspace = root.parent
     validate_root(workspace, root)
@@ -2006,11 +2077,13 @@ def windows_named_mutex(root: Path, key: str) -> Iterator[None]:
 
     if key == "workspace_registration":
         identity = b"goal-forge-machine-workspace-registration-v1"
+        mutex_prefix = "Global\\GoalForge_"
     else:
         identity = (
             os.path.normcase(str(root.resolve(strict=False))) + "\0" + key
         ).encode("utf-8")
-    mutex_name = "Global\\GoalForge_" + sha256_bytes(identity)
+        mutex_prefix = "Global\\Intentwright_"
+    mutex_name = mutex_prefix + sha256_bytes(identity)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     create_mutex = kernel32.CreateMutexW
     create_mutex.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
@@ -2122,7 +2195,7 @@ def workspace_lease_lock(root: Path) -> Iterator[None]:
 
 @contextlib.contextmanager
 def workspace_registration_lock() -> Iterator[None]:
-    coordination_root = Path.home() / ".goal-forge-coordination"
+    coordination_root = Path.home() / LEGACY_COORDINATION_DIRECTORY
     with named_lock(coordination_root, "workspace_registration"):
         yield
 
@@ -2146,7 +2219,7 @@ def make_goal_command(
     spec_file = manifest["spec_file"]
     spec_hash = manifest["spec_sha256"]
     return (
-        f'/goal Execute only immutable Goal Forge package {goal_id} at "{package}" '
+        f'/goal Execute only immutable Intentwright package {goal_id} at "{package}" '
         f'({relative}/{spec_file}). First read execution_prompt.md and {spec_file}, verify '
         f"SHA-256 {spec_hash}, and claim its declared write scopes before changing project files. "
         "Never read sibling goal specs or modify sibling packages. Continue until every mandatory "
@@ -2175,7 +2248,7 @@ def render_execution_prompt(
     spec_hash = manifest["spec_sha256"]
     goals_dir = package.parent.parent.name
     scopes = ", ".join(manifest["write_scopes"])
-    return f"""# Goal Forge execution handoff
+    return f"""# Intentwright execution handoff
 
 Paste this exact command into a new Codex session that can access the workspace:
 
@@ -2237,7 +2310,7 @@ Each `pass` or `fail` criterion points to one or more structured JSON evidence r
 
 ```json
 {{
-  "schema_version": 1,
+  "schema_version": 2,
   "goal_id": "{goal_id}",
   "criterion_id": "AC-001",
   "claim_epoch": 1,
@@ -2261,7 +2334,7 @@ Each `pass` or `fail` criterion points to one or more structured JSON evidence r
 
 ```json
 {{
-  "schema_version": 1,
+  "schema_version": 2,
   "goal_id": "{goal_id}",
   "outcome": "achieved",
   "reason_code": "completed",
@@ -2306,7 +2379,7 @@ def make_portable_payload(
 ) -> str:
     payload = {
         "schema_version": SCHEMA_VERSION,
-        "kind": "goal-forge-portable",
+        "kind": "intentwright-portable",
         "manifest": manifest,
         "approved_body_utf8_base64": base64.b64encode(
             approved_body.encode("utf-8")
@@ -2329,17 +2402,17 @@ def render_portable_handoff(
     command = make_goal_command(workspace, package, manifest)
     payload = make_portable_payload(manifest, approved_body, spec_text)
     goals_dir = package.parent.parent.name
-    return f"""# Goal Forge portable handoff
+    return f"""# Intentwright portable handoff
 
 Use the short command below when the new session can access the original workspace:
 
 {command}
 
-For a disconnected copy mounted at the exact same receipt-bound canonical absolute workspace identity, copy or attach this entire file first. Use that machine's local Goal Forge lifecycle helper to run:
+For a disconnected copy mounted at the exact same receipt-bound canonical absolute workspace identity, copy or attach this entire file first. Use that machine's local Intentwright lifecycle helper to run:
 
-`<python> "<local Goal Forge skill>/scripts/goal_lifecycle.py" import-portable --workspace "<exact approved absolute workspace path>" --goals-dir "{goals_dir}" --file "<this portable_handoff.md>"`
+`<python> "<local Intentwright skill>/scripts/intentwright_lifecycle.py" import-portable --workspace "<exact approved absolute workspace path>" --goals-dir "{goals_dir}" --file "<this portable_handoff.md>"`
 
-Use `python` for `<python>` on Windows and normally `python3` on macOS or Linux; it must resolve to Python 3.10 or newer. Resolve `<local Goal Forge skill>` on that machine (normally `$HOME/.agents/skills/goal-forge`), verify the returned package and hash, then use the newly generated short `/goal`. Any different absolute workspace path or repository requires a new Goal Forge readback and approval; the import command will refuse it. Do not truncate the embedded specification.
+Use `python` for `<python>` on Windows and normally `python3` on macOS or Linux; it must resolve to Python 3.10 or newer. Resolve `<local Intentwright skill>` on that machine (normally `$HOME/.agents/skills/intentwright`), verify the returned package and hash, then use the newly generated short `/goal`. Any different absolute workspace path or repository requires a new Intentwright readback and approval; the import command will refuse it. Do not truncate the embedded specification.
 
 Important:
 
@@ -2645,7 +2718,7 @@ def command_approval_receipt(args: argparse.Namespace) -> None:
     if type(args.revision) is not int or args.revision < 1:
         raise LifecycleError("--revision must be at least 1")
     if INTERVIEW_ID_RE.fullmatch(args.interview_id) is None:
-        raise LifecycleError("--interview-id must use the gfi_<UTC>_<slug>_<4hex> format")
+        raise LifecycleError("--interview-id must use the iwi_<UTC>_<slug>_<4hex> format")
     if args.retry_of and args.supersedes:
         raise LifecycleError("A package cannot set both --retry-of and --supersedes")
     for linked in (args.retry_of, args.supersedes):
@@ -2702,7 +2775,7 @@ def command_init(args: argparse.Namespace) -> None:
     if type(args.revision) is not int or args.revision < 1:
         raise LifecycleError("--revision must be at least 1")
     if INTERVIEW_ID_RE.fullmatch(args.interview_id) is None:
-        raise LifecycleError("--interview-id must use the gfi_<UTC>_<slug>_<4hex> format")
+        raise LifecycleError("--interview-id must use the iwi_<UTC>_<slug>_<4hex> format")
     approval_body_sha256 = args.approved_body_sha256.lower()
     if re.fullmatch(r"[0-9a-f]{64}", approval_body_sha256) is None:
         raise LifecycleError("--approved-body-sha256 must be exactly 64 hexadecimal characters")
@@ -4359,7 +4432,7 @@ def parse_portable(path: Path) -> tuple[dict[str, Any], str, str]:
         not isinstance(payload, dict)
         or type(payload.get("schema_version")) is not int
         or payload.get("schema_version") != SCHEMA_VERSION
-        or payload.get("kind") != "goal-forge-portable"
+        or payload.get("kind") != "intentwright-portable"
         or not isinstance(payload.get("manifest"), dict)
     ):
         raise LifecycleError("Portable handoff schema is unsupported")
@@ -4521,7 +4594,7 @@ def command_import_portable(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Create, publish, claim, verify, recover, and archive Goal Forge packages."
+        description="Create, publish, claim, verify, recover, and archive Intentwright packages."
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

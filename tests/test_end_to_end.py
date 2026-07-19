@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import subprocess
@@ -12,11 +13,11 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPER = ROOT / "scripts" / "goal_lifecycle.py"
-TITLE = "Validate the public Goal Forge lifecycle"
+HELPER = ROOT / "scripts" / "intentwright_lifecycle.py"
+TITLE = "Validate the public Intentwright lifecycle"
 SLUG = "public_e2e"
 REVISION = 1
-INTERVIEW_ID = "gfi_20260719T120000000Z_public_e2e_1a2b"
+INTERVIEW_ID = "iwi_20260719T120000000Z_public_e2e_1a2b"
 REQUIRED_EVIDENCE = (
     "A JSON command transcript containing successful approval, initialization, "
     "publication, verification, and claim results."
@@ -24,7 +25,7 @@ REQUIRED_EVIDENCE = (
 
 SEMANTIC_BODY = f"""## Executive outcome
 
-Validate that the public Goal Forge helper can turn one approved specification into an
+Validate that the public Intentwright helper can turn one approved specification into an
 isolated package, execute its guarded lifecycle, and preserve a verifiable achieved
 archive. The audience is maintainers and contributors running the repository test suite.
 The convincing demonstration is a clean end-to-end command sequence in a temporary
@@ -241,7 +242,7 @@ class PublicLifecycleEndToEndTests(unittest.TestCase):
         path.write_bytes((json.dumps(value, indent=2) + "\n").encode("utf-8"))
 
     def test_full_public_lifecycle_with_tamper_detection(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="goal-forge-e2e-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="intentwright-e2e-") as temporary:
             workspace = Path(temporary).resolve()
             (workspace / "src").mkdir()
             candidate = workspace / "approved_candidate.md"
@@ -272,6 +273,7 @@ class PublicLifecycleEndToEndTests(unittest.TestCase):
             )
             self.assertEqual(receipt["requirements"], ["REQ-001"])
             self.assertEqual(receipt["mandatory_acceptance_criteria"], ["AC-001"])
+            self.assertEqual(receipt["receipt"]["kind"], "intentwright-approval-receipt")
 
             initialized = self._run(
                 workspace,
@@ -287,6 +289,18 @@ class PublicLifecycleEndToEndTests(unittest.TestCase):
             staging = Path(initialized["staging_package"])
             approved_body_path = Path(initialized["approved_body_path"])
             approved_body_path.write_bytes(candidate.read_bytes())
+            workspace_marker = json.loads(
+                (workspace / ".intentwright-workspace.json").read_text(encoding="utf-8")
+            )
+            root_marker = json.loads(
+                (workspace / "goals" / ".intentwright-root.json").read_text(encoding="utf-8")
+            )
+            legacy_exclusion = json.loads(
+                (workspace / ".goal-forge-workspace.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(workspace_marker["kind"], "intentwright-workspace")
+            self.assertEqual(root_marker["kind"], "intentwright-root")
+            self.assertEqual(legacy_exclusion["kind"], "intentwright-legacy-exclusion")
 
             published = self._run(
                 workspace,
@@ -298,6 +312,27 @@ class PublicLifecycleEndToEndTests(unittest.TestCase):
             package = Path(published["pending_package"])
             self.assertEqual(package.name, goal_id)
             self.assertTrue(package.is_dir())
+            execution_prompt = (package / "execution_prompt.md").read_text(encoding="utf-8")
+            portable_handoff = (package / "portable_handoff.md").read_text(encoding="utf-8")
+            self.assertIn("# Intentwright execution handoff", execution_prompt)
+            self.assertIn("immutable Intentwright package", execution_prompt)
+            self.assertIn("# Intentwright portable handoff", portable_handoff)
+            self.assertIn("INTENTWRIGHT_PORTABLE_PAYLOAD_BEGIN", portable_handoff)
+            self.assertNotIn("Goal " + "Forge", execution_prompt)
+            self.assertNotIn("Goal " + "Forge", portable_handoff)
+            self.assertNotIn("$goal" + "-forge", execution_prompt)
+            self.assertNotIn("$goal" + "-forge", portable_handoff)
+            encoded_payload = portable_handoff.split(
+                "<!-- INTENTWRIGHT_PORTABLE_PAYLOAD_BEGIN -->\n",
+                1,
+            )[1].split(
+                "\n<!-- INTENTWRIGHT_PORTABLE_PAYLOAD_END -->",
+                1,
+            )[0]
+            portable_payload = json.loads(
+                base64.b64decode("".join(encoded_payload.splitlines())).decode("utf-8")
+            )
+            self.assertEqual(portable_payload["kind"], "intentwright-portable")
 
             verified = self._run(
                 workspace,
@@ -353,7 +388,7 @@ class PublicLifecycleEndToEndTests(unittest.TestCase):
             )
             evidence_record_path = evidence_dir / "ac-001-record.json"
             evidence_record = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "goal_id": goal_id,
                 "criterion_id": "AC-001",
                 "claim_epoch": epoch,
@@ -379,7 +414,7 @@ class PublicLifecycleEndToEndTests(unittest.TestCase):
             self._write_json(evidence_record_path, evidence_record)
 
             outcome = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "goal_id": goal_id,
                 "outcome": "achieved",
                 "reason_code": "completed",
@@ -450,6 +485,10 @@ class PublicLifecycleEndToEndTests(unittest.TestCase):
             self.assertEqual(archived["state"], "achieved")
             self.assertFalse(package.exists())
             self.assertTrue((terminal / "terminal_seal.json").is_file())
+            terminal_seal = json.loads(
+                (terminal / "terminal_seal.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(terminal_seal["kind"], "intentwright-terminal-seal")
 
             terminal_verified = self._run(
                 workspace,
