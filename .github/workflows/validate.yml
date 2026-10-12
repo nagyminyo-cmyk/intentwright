@@ -32,7 +32,7 @@ jobs:
         run: python -m pip install ruff==0.15.22
 
       - name: Check syntax
-        run: python -m py_compile scripts/intentwright_lifecycle.py
+        run: python -m py_compile scripts/intentwright_lifecycle.py scripts/build_release.py
 
       - name: Check command-line interface
         run: python scripts/intentwright_lifecycle.py --help
@@ -42,3 +42,6 @@ jobs:
 
       - name: Run Ruff
         run: ruff check .
+
+      - name: Build complete release packages
+        run: python scripts/build_release.py --output-dir dist --include-source

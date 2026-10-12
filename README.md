@@ -20,6 +20,40 @@ Intentwright does not build the project during the interview. Its job is to make
 the eventual build goal unusually precise, testable, and difficult to
 misinterpret.
 
+## Choose an edition
+
+| Edition | Result | Requirements | Distribution |
+| --- | --- | --- | --- |
+| **Intentwright for Codex 2.1.0** | Approved specification, sealed local goal package, `/goal` handoff, cooperative execution claims and evidence checks | Codex with `/goal` and skills support, Python 3.10+, local filesystem access | `intentwright-codex-2.1.0.zip` or this repository |
+| **Intentwright Spec 1.0.0** | Deep interview, visible decision ledger, explicit specification readback and an approved text handoff | An agent that can load the complete `SKILL.md` in its current conversation | `intentwright-spec-1.0.0-agensi.zip` |
+
+The Spec edition keeps every essential instruction in one `SKILL.md`. It does
+not provide local lifecycle packages, hash receipts, execution leases or
+machine-verified evidence. It is intended for marketplaces that deliver skills
+through an agent connection. Actual acceptance and delivery on Agensi must be
+verified with that platform; this repository does not claim an approved listing.
+
+Both editions are MIT licensed. Read the
+[Spec edition documentation](https://github.com/nagyminyo-cmyk/intentwright/tree/main/marketplace/intentwright-spec)
+for its boundaries. The rest of this README describes the full Codex edition.
+
+## A quick first use
+
+1. Install the full Codex edition using the instructions below.
+2. Open Codex in your project and enter:
+
+   ```text
+   $intentwright Interview me before adding a weekly task view to this app.
+   ```
+
+3. Answer the consequential questions and review the complete specification.
+4. Approve only when the exact readback reflects your choices. Copy the returned
+   `/goal` command into a fresh Codex session in the same project.
+
+See the [worked example](examples/codex-walkthrough.md) for a concrete interview
+and acceptance criteria. The example is illustrative; automated lifecycle
+verification comes from the test suite.
+
 ## What it changes
 
 A normal prompt often leaves the executor to invent product decisions while it
@@ -55,22 +89,47 @@ data, security-sensitive work, and other task types.
   `goal_spec_game_rebuild_map.md`.
 - **Multiple concurrent goals:** separate agents can claim non-overlapping
   write scopes without mixing their specifications.
-- **Immutable execution handoff:** a published spec cannot silently drift.
+- **Sealed execution handoff:** cooperating executors verify the published
+  specification and reject changes that do not match its stored hashes.
 - **Evidence-based completion:** mandatory acceptance criteria require
   criterion-specific evidence.
 - **Honest archival:** finished packages move to `goal_achieved`; blocked,
   cancelled, abandoned, or superseded work moves to `goal_not_achieved`.
 - **Crash and takeover handling:** exact IDs, claim epochs, heartbeats, terminal
-  seals, and recovery rules prevent “just rerun it” ambiguity.
+  seals, and recovery rules define which package an executor may resume.
 
 ## Install
 
 Requirements:
 
-- Codex with user skills support
-- Git
+- Codex with user skills and `/goal` support
+- Local filesystem access for the helper and generated packages
 - Python 3.10 or newer (`python` on Windows; normally `python3` on macOS or
   Linux)
+- Git for repository-based installation; the release ZIP does not require Git
+
+### Install the release ZIP
+
+Download `intentwright-codex-2.1.0.zip` from the
+[GitHub releases page](https://github.com/nagyminyo-cmyk/intentwright/releases).
+Each published package has a SHA-256 digest in `SHA256SUMS` and a per-file
+`MANIFEST.json`. These are integrity checks, not signatures proving authorship.
+
+The ZIP contains one `intentwright/` directory. Extract it into your user skills
+directory, normally `~/.agents/skills`, so that
+`~/.agents/skills/intentwright/SKILL.md` exists. Do not extract over an existing
+installation or merge editions. Keep any helper needed by existing packages
+until those packages have been finished, archived, recovered or retired.
+
+For example, after downloading on Windows:
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\.agents\skills" | Out-Null
+if (Test-Path -LiteralPath "$HOME\.agents\skills\intentwright") {
+    throw "Keep the existing installation; choose a clean installation path."
+}
+Expand-Archive -LiteralPath "$HOME\Downloads\intentwright-codex-2.1.0.zip" -DestinationPath "$HOME\.agents\skills"
+```
 
 ### Install from Codex
 
@@ -213,6 +272,11 @@ Git history.
 
 ## Update
 
+Before replacing an installed helper, finish existing packages or retain the
+helper and directory that their handoffs reference. A ZIP installation is
+updated by deliberately replacing it with a checked release archive once it is
+safe to do so. Repository installations can use:
+
 ```powershell
 git -C "$HOME\.agents\skills\intentwright" pull --ff-only
 ```
@@ -250,6 +314,40 @@ sandbox or access-control boundary.
 The lifecycle helper uses only the Python standard library. Windows uses
 cross-session named mutexes; Unix-like platforms use hardened advisory lock
 files.
+
+## Build and verify release packages
+
+From a source checkout with Python 3.10 or newer:
+
+```text
+python -m unittest discover -s tests -v
+python scripts/build_release.py --output-dir dist --include-source
+```
+
+Use `python3` on platforms where that is the Python launcher. The builder emits:
+
+- `intentwright-codex-2.1.0.zip`, rooted at `intentwright/`, with the complete
+  locally executable skill, references, helper, documentation and example;
+- `intentwright-spec-1.0.0-agensi.zip`, with `SKILL.md` at the ZIP root for
+  marketplace upload, plus its MIT license and supporting documentation;
+- `intentwright-source-2.1.0.zip`, with source, tests and release tooling;
+- `RELEASES.json` and `SHA256SUMS`, with archive and payload hashes.
+
+Use `--edition codex` or `--edition spec` to build just one install package.
+`--include-source` applies to the combined build. An explicit file allowlist
+excludes `.git`, `.env` files, caches and runtime goal packages. Review the
+included source for secrets before distributing it; the allowlist is not a
+secrets scanner. The builder
+rejects symlinks and reparse points in selected source trees, checks the version
+and required skill files, normalizes text to UTF-8/LF, and fixes ZIP metadata.
+The same included source bytes produce the same archive bytes.
+
+Packaging tests extract the full Codex archive and run the included helper's
+CLI, verify the upload layout and hashes, and test determinism and rejection
+paths. CI builds packages on its existing Windows/macOS/Linux matrix. A
+version-matching Git tag also runs the release workflow, which creates a
+**draft** GitHub release with reviewed assets. Publishing that draft is a
+separate maintainer action.
 
 ## Contributing
 
