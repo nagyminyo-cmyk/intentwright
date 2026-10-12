@@ -8,6 +8,7 @@ uv.lock
 coverage.xml
 .DS_Store
 Thumbs.db
+dist/
 
 # Intentwright runtime data belongs in the target project, never in this skill.
 goals/

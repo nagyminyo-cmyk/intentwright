@@ -1068,6 +1068,28 @@ def validate_terminal_seal(
     return seal
 
 
+def precommitted_status_temporaries(
+    package: Path,
+    final_status_bytes: bytes,
+    sealed_names: set[str],
+) -> list[Path]:
+    """Recognize only interrupted atomic writes of the exact sealed final status."""
+    temporaries: list[Path] = []
+    for candidate in sorted(package.iterdir()):
+        if candidate.name in sealed_names or re.fullmatch(
+            r"\.status\.json\.[0-9a-f]{32}\.tmp", candidate.name
+        ) is None:
+            continue
+        validate_unique_regular_file(candidate, "Precommitted status temporary")
+        if candidate.read_bytes() != final_status_bytes:
+            raise LifecycleError(
+                "Precommitted status temporary is not the exact sealed final status: "
+                + candidate.name
+            )
+        temporaries.append(candidate)
+    return temporaries
+
+
 def validate_precommitted_terminal_seal(
     package: Path,
     goal_id: str,
@@ -1112,12 +1134,17 @@ def validate_precommitted_terminal_seal(
     expected_hashes = seal.get("files")
     if not isinstance(expected_hashes, dict) or not expected_hashes:
         raise LifecycleError("Precommitted terminal seal file map is invalid")
-    if expected_hashes.get("status.json") != sha256_bytes(atomic_json_bytes(final_status)):
+    final_status_bytes = atomic_json_bytes(final_status)
+    if expected_hashes.get("status.json") != sha256_bytes(final_status_bytes):
         raise LifecycleError("Precommitted terminal seal does not bind its final status")
     actual_hashes = terminal_file_hashes(
         package,
-        {"status.json": atomic_json_bytes(final_status)},
+        {"status.json": final_status_bytes},
     )
+    for temporary in precommitted_status_temporaries(
+        package, final_status_bytes, set(expected_hashes)
+    ):
+        del actual_hashes[temporary.name]
     if expected_hashes != actual_hashes:
         raise LifecycleError(
             "Precommitted terminal seal does not match the exact future terminal package"
@@ -3875,6 +3902,13 @@ def finalize_and_seal_terminal(package: Path, terminal_state: str) -> dict[str, 
                 str(status.get("archive_intent", {}).get("reason_code")),
             )
             finalized = seal["final_status"]
+            # A killed atomic status write can leave its temporary file after
+            # the seal is committed. Validation remains read-only; only locked
+            # recovery removes byte-identical, uniquely regular helper writes.
+            for temporary in precommitted_status_temporaries(
+                package, atomic_json_bytes(finalized), set(seal["files"])
+            ):
+                temporary.unlink()
         else:
             finalized = build_terminal_status(package, terminal_state)
             reason = finalized.get("terminal_reason_code")

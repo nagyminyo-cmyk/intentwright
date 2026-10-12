@@ -4,6 +4,40 @@ All notable changes to Intentwright will be documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-10-12
+
+### Added
+
+- Separate Intentwright Spec 1.0.0 marketplace edition with all essential
+  interview instructions in one file and an explicit approval text handoff.
+- Reproducible, standard-library-only release builder with explicit file
+  allowlists, version checks, symlink/reparse rejection, per-file manifests and
+  archive SHA-256 checksums.
+- Complete Codex install ZIP, marketplace upload ZIP with `SKILL.md` at its
+  root, and optional clean source archive.
+- Packaging extraction/CLI smoke tests, determinism and payload-integrity tests,
+  and release-artifact CI with draft GitHub release creation on matching tags.
+- Illustrative interview walkthrough and clearer installation, edition and
+  update guidance.
+- Regression coverage for concurrent claims, takeover fencing, cancellation,
+  retry/replacement lineage, portable imports and interrupted archival.
+
+### Fixed
+
+- Recover terminal archival interrupted immediately before final status
+  replacement when the leftover atomic status file exactly matches the
+  precommitted seal. Changed contents, unsafe links, lookalike filenames,
+  missing seals and unexpected files remain rejected and preserved.
+
+### Changed
+
+- Distinguish full local lifecycle functionality from the Spec edition's
+  conversation-only interview and approval behavior.
+- Clarify that cooperating-executor hashes, claims and evidence checks do not
+  prove authorship or independently establish subjective acceptance.
+- Lifecycle schema remains 2; existing schema-2 package identifiers and
+  compatibility boundaries are preserved.
+
 ## [2.0.0] - 2026-07-19
 
 ### Changed

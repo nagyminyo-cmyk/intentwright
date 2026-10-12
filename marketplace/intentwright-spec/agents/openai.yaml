@@ -1,0 +1,4 @@
+interface:
+  display_name: "Intentwright Spec"
+  short_description: "Interview, decide, and approve a clear project spec"
+  default_prompt: "Use $intentwright-spec to interview me and turn my idea into an approved specification with testable acceptance criteria and a complete execution handoff."
